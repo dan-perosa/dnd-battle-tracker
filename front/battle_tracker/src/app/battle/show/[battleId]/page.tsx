@@ -237,6 +237,10 @@ const TrackerPage: React.FC = () => {
                               'initiative_info': allParticipants})
       });
 
+      console.log(JSON.stringify({'battle_id': battleId,
+        'owner_id': userId,
+        'initiative_info': allParticipants}))
+
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }

@@ -83,7 +83,7 @@ const BattlesPage: React.FC = () => {
       }
 
       const data = await response.json();
-      const battle_info: ReturnedBattleInfo = {'battle_status': data.battle_status,
+      const battle_info: ReturnedBattleInfo = {'battle_status': data.status,
                            'participant_characters': data.participant_characters,
                            'participant_monsters': data.participant_monsters,
                            'battle_id': data.id,
@@ -128,11 +128,17 @@ const BattlesPage: React.FC = () => {
 
   const handleEnterBattleButton = async (battle_id: number) => {
     const battle_info = await decideHandleBattle(battle_id)
+    console.log(battle_info)
     if (battle_info && battle_info.battle_status == 'not_started') {
-      console.log(battle_info)
       transformBattleToOngoing(battle_info)
+      router.push(`/battle/show/${battle_id}`)
     }
-    router.push(`/battle/show/${battle_id}`)
+    else if (battle_info && battle_info.battle_status == 'initiative_roll') {
+      router.push(`/battle/show/${battle_id}`)
+    }
+    else if (battle_info && battle_info.battle_status == 'after_initiative') {
+      router.push(`/battle/show/after_initiative/${battle_id}`)
+    }
   };
 
   const handleToggleSelect = (battle: Battle) => {

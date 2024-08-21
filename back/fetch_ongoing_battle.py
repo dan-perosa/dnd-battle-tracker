@@ -30,8 +30,7 @@ def fetch_ongoing_battle(battle_id):
         if battle_row.status == 'after_initiative':
             battle_info = {'participant_characters': battle_row.participant_characters,
                         'participant_monsters': battle_row.participant_monsters,
-                        'characters_initiatives': battle_row.character_initiatives,
-                        'monsters_initiatives': battle_row.character_initiatives,
+                        'participants_initiative_order': battle_row.participants_initiative_order,
                         'battle_id':battle_row.battle_id
                                             }
             

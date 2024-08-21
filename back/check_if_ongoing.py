@@ -14,20 +14,16 @@ def check_if_ongoing(battle_info):
         result = session.execute(querry)
         returned_dict = result.scalars().first().__dict__
         returned_dict['info'] = 'batalha vai para initiative'
-        returned_dict['battle_status'] = 'not_started'
+        returned_dict['status'] = 'not_started'
              
         return returned_dict
     
-    # querry = select(Battle).where(Battle.id == battle_info.battle_id)
-    # result = session.execute(querry)
-    
     else:
-        querry = select(Battle).where(Battle.id == battle_info.battle_id).where(Battle.owner_id == battle_info.owner_id)
+        querry = select(OngoingBattle).where(OngoingBattle.battle_id == battle_info.battle_id).where(OngoingBattle.owner_id == battle_info.owner_id)
         result = session.execute(querry)
         returned_dict = result.scalars().first().__dict__
-        returned_dict['info'] = 'batalha ja está initiative'
-        returned_dict['battle_status'] = 'initiative_roll'
-        
+        print(returned_dict)
+
         return returned_dict
     
     

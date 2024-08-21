@@ -4,7 +4,7 @@ from models import OngoingBattle
 from database import SessionLocal
 
 session = SessionLocal()
-  
+ 
 def transform_to_ongoing_battle(battle_info: Dict[str, (str | int)]):
     
     querry = select(OngoingBattle).where(OngoingBattle.battle_id == battle_info.battle_id)

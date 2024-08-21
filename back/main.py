@@ -20,6 +20,8 @@ from fetch_ongoing_battle import fetch_ongoing_battle
 from fetch_dexterity_info import fetch_dexterity_info
 from fetch_mapped_participants import fetch_mapped_participants
 from transform_to_after_initiative import transform_to_after_initiative
+from fetch_after_initiative_info import fetch_after_initiative_info
+from fetch_after_initiative_hps import fetch_after_initiative_hps
 
 app = FastAPI()
 
@@ -126,6 +128,14 @@ class TransformToAfterInitiativeBattle(BaseModel):
     owner_id: int
     initiative_info: list
     
+class FetchAfterInitiativeBattleInfo(BaseModel):
+    battle_id: int
+    owner_id: int
+    
+class FetchAfterInitiativeHps(BaseModel):
+    battle_id: int
+    owner_id: int
+    
 @app.post('/users/create_user')
 def create_user_endpoint(user_info: UserCreate, response: Response):
     user_dict = user_info
@@ -221,5 +231,14 @@ def fecth_mapped_participants_endpoint(participants_info: FetchParticipantDex):
 @app.post('/battle/transform_to_after_initiative')
 def transform_to_after_initiative_endpoint(battle_info: TransformToAfterInitiativeBattle):
     return transform_to_after_initiative(battle_info)
+
+@app.post('/battle/fetch_after_initiative_info')
+def fetch_after_initiative_info_endpoint(battle_info: FetchAfterInitiativeBattleInfo):
+    return fetch_after_initiative_info(battle_info)
+
+@app.post('/battle/fetch_after_initiative_hps')
+def fetch_after_initiative_hps_endpoint(battle_info: FetchAfterInitiativeHps):
+    return fetch_after_initiative_hps(battle_info)
+
 
  
