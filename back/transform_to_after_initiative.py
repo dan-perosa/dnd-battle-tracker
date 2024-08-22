@@ -73,25 +73,17 @@ def transform_to_after_initiative(battle_info):
             'type': info['type'],
             'total_init': info['total_init'],
             'battle_position': info['battle_position'],
-        })
-        
-    for info in initiative_info_list:
-        hp_and_ac_list_to_post.append({
-            'participant_name': info['participant_name'],
-            'participant_character_id': info['participant_character_id'],
-            'participant_monster_id': info['participant_monster_id'],
-            'type': info['type'],
-            'battle_position': info['battle_position'],
+            'participant_generic_id': info['participant_generic_id'],
             'max_hp': get_max_hp(type=info['type'], owner_id=owner_id, participant_name=info['participant_name']),
             'current_hp': get_current_hp(type=info['type'], owner_id=owner_id, participant_name=info['participant_name']),
-            'ac': get_ac(type=info['type'], owner_id=owner_id, participant_name=info['participant_name'])
+            'ac': get_ac(type=info['type'], owner_id=owner_id, participant_name=info['participant_name']),
         })
-    
+        
+
     try:
         querry = update(OngoingBattle).where(OngoingBattle.battle_id == battle_id) \
         .where(OngoingBattle.owner_id == owner_id).where(OngoingBattle.status == 'initiative_roll') \
-        .values(status='after_initiative', participants_initiative_order=str(initiative_info_list_to_post), \
-            current_hps=str(hp_and_ac_list_to_post))
+        .values(status='after_initiative', participants_initiative_order=str(initiative_info_list_to_post))
         
         session.execute(querry)
         session.commit()

@@ -12,17 +12,23 @@ interface Participant {
   type: string;
   total_init: number;
   battle_position: number;
+  participant_generic_id: number;
+  max_hp: number;
+  current_hp: number;
+  ac: number;
 }
 
 interface ParticipantInfo {
-  hp: number;
-  armor_class: number;
-}
-
-interface AttackDice {
+  participant_name: string;
+  participant_character_id: number | null;
+  participant_monster_id: number | null;
   type: string;
-  count: number;
-  bonus: number;
+  total_init: number;
+  battle_position: number;
+  participant_generic_id: number;
+  max_hp: number;
+  current_hp: number;
+  ac: number;
 }
 
 interface DiceInfo {
@@ -32,34 +38,27 @@ interface DiceInfo {
   completeSum: number;
 }
 
-interface ParticipantHps {
-  participant_name: string;
-  participant_character_id: number | null;
-  participant_monster_id: number | null;
-  type: string;
-  battle_position: number;
-  max_hp: number;
-  current_hp: number;
-}
-
 const BattlePage: React.FC = () => {
+  const diceInfoInitialState = [{type: 'd4',count: 0,bonus: 0,completeSum: 0},
+    {type: 'd6',count: 0,bonus: 0,completeSum: 0},
+    {type: 'd8',count: 0,bonus: 0,completeSum: 0},
+    {type: 'd10',count: 0,bonus: 0,completeSum: 0},
+    {type: 'd12',count: 0,bonus: 0,completeSum: 0},
+    {type: 'd20',count: 0,bonus: 0,completeSum: 0}];
+
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [fixedParticipants, setFixedParticipants] = useState<Participant[]>([]);
   const [activeParticipant, setActiveParticipant] = useState<Participant | null>(null);
   const [activeParticipantInfo, setActiveParticipantInfo] = useState<ParticipantInfo | null>(null);
-  const [participantHps, setParticipantHps] = useState<ParticipantHps[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAttackForm, setShowAttackForm] = useState(false);
-  const [attackDice, setAttackDice] = useState<AttackDice[]>([]);
-  const [diceInfo, setDiceInfo] = useState<DiceInfo[]>([{type: 'd4',count: 0,bonus: 0,completeSum: 0},
-                                                        {type: 'd6',count: 0,bonus: 0,completeSum: 0},
-                                                        {type: 'd8',count: 0,bonus: 0,completeSum: 0},
-                                                        {type: 'd10',count: 0,bonus: 0,completeSum: 0},
-                                                        {type: 'd12',count: 0,bonus: 0,completeSum: 0},
-                                                        {type: 'd20',count: 0,bonus: 0,completeSum: 0}])
+  const [diceInfo, setDiceInfo] = useState<DiceInfo[]>(diceInfoInitialState);
   const router = useRouter();
   const { battleId } = useParams();
   const [userId, setUserId] = useState<string | null>(null);
-  const [totalSum, setTotalSum] = useState<number>(0)
+  const [totalSum, setTotalSum] = useState<number>(0);
+  const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
+  const [noTargetSelected, setNoTargetSelected] = useState<true | false>(false)
 
   useEffect(() => {
     const storedUserId = localStorage.getItem('userId');
@@ -67,8 +66,6 @@ const BattlePage: React.FC = () => {
       setUserId(storedUserId);
     }
   }, []);
-
-  // const fetchArmorClassAndHp
 
   useEffect(() => {
     const fetchParticipants = async () => {
@@ -89,6 +86,7 @@ const BattlePage: React.FC = () => {
         const jsonString = data.participants_initiative_order.replace(/'/g, '"').replace(/None/g, 'null');
         const participantsInitiativeOrderList: Participant[] = JSON.parse(jsonString);
         setParticipants(participantsInitiativeOrderList);
+        setFixedParticipants(participantsInitiativeOrderList);
 
         // Set the active participant
         const currentTurnParticipant = participantsInitiativeOrderList.find(participant => participant.battle_position === 1) || null;
@@ -103,35 +101,6 @@ const BattlePage: React.FC = () => {
 
     fetchParticipants();
   }, [userId, battleId]);
-
-  const fetchHpsAndAc = async () => {
-    try {
-      const response = await fetch('http://127.0.0.1:8000/battle/fetch_after_initiative_hps', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ battle_id: Number(battleId), owner_id: Number(userId) }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      const jsonString = data.participant_hps_and_ac.replace(/'/g, '"').replace(/None/g, 'null');
-      const participantHps: ParticipantHps[] = JSON.parse(jsonString);
-      setParticipantHps(participantHps);
-
-    } catch (error) {
-      console.error('Error fetching participants:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchHpsAndAc()
-  }, [participants]);
 
   const handleSkipTurn = () => {
     if (!activeParticipant) return;
@@ -148,34 +117,55 @@ const BattlePage: React.FC = () => {
 
         // Reorder the participants
         updatedParticipants.forEach((p, i) => p.battle_position = i + 1);
+        const currentTurnParticipant = participants.find(participant => participant.battle_position === 1) || null;
+        setActiveParticipant(currentTurnParticipant);
         return updatedParticipants;
       }
       return prevParticipants;
     });
-
   };
 
   const handleAttack = () => {
     setShowAttackForm(true);
   };
 
-  const handleDiceChange = (index: number, type: string, count: number, bonus: number) => {
-    setAttackDice(prevDice => {
-      const newDice = [...prevDice];
-      if (index >= newDice.length) {
-        newDice.push({ type, count, bonus });
-      } else {
-        newDice[index] = { type, count, bonus };
+  const dealDamage = (targetId: number, totalSum: number) => {
+    const updatedParticipants = participants.map(participant => {
+      if (participant.participant_generic_id === targetId) {
+        return { ...participant, current_hp: participant.current_hp - totalSum };
       }
-      return newDice;
+      return participant;
     });
+    
+    setParticipants(updatedParticipants);
   };
 
+  useEffect(() => {
+    console.log('participants atualizado:', participants);
+  }, [participants]);
+
   const handleSubmitAttack = () => {
-    // Handle the attack submission logic here
-    console.log("Submitting attack with dice:", attackDice);
+    if (selectedTargetId === null) {
+      setNoTargetSelected(true)
+      return
+    }
+    let allDicesTotalSum = 0
+    diceInfo.map(dice => {
+      allDicesTotalSum += dice.completeSum
+    })
+    dealDamage(selectedTargetId, allDicesTotalSum)
+
+    setDiceInfo(diceInfoInitialState)
+    setSelectedTargetId(null)
     setShowAttackForm(false);
 
+    handleSkipTurn()
+
+    const currentTurnParticipant = participants.find(participant => participant.battle_position === 1) || null;
+    setActiveParticipant(currentTurnParticipant);
+
+    setNoTargetSelected(false)
+    console.log(participants)
   };
 
   const handleDiceInfo = (type: string, field: 'count' | 'bonus', value: number) => {
@@ -188,39 +178,26 @@ const BattlePage: React.FC = () => {
     });
   };
 
-  const handleCountDiceSum = (type: string,) => {
-    let faces = 0
-    if (type === 'd4') {
-       faces = 4
-    }
-    else if (type === 'd6') {
-       faces = 6
-    }
-    else if (type === 'd8') {
-       faces = 8
-    }
-    else if (type === 'd10') {
-       faces = 10
-    }
-    else if (type === 'd12') {
-       faces = 12
-    }
-    else {
-       faces = 20
-    }
+  const handleCountDiceSum = (type: string) => {
+    let faces = 0;
+    if (type === 'd4') faces = 4;
+    else if (type === 'd6') faces = 6;
+    else if (type === 'd8') faces = 8;
+    else if (type === 'd10') faces = 10;
+    else if (type === 'd12') faces = 12;
+    else faces = 20;
 
     const diceAmount = diceInfo.find(dice => dice.type === type)?.count || 0;
     const diceBonus = diceInfo.find(dice => dice.type === type)?.bonus || 0;
 
     let rolledSum = 0;
 
-    for (let i=0; i < diceAmount; i++) {
+    for (let i = 0; i < diceAmount; i++) {
       const roll = Math.floor(Math.random() * faces) + 1;
       rolledSum += roll;
-      console.log(roll, rolledSum)
     }
 
-    const totalSum = rolledSum + diceBonus
+    const totalSum = rolledSum + diceBonus;
     setDiceInfo(prevDiceInfo =>
       prevDiceInfo.map(dice =>
         dice.type === type
@@ -228,8 +205,8 @@ const BattlePage: React.FC = () => {
           : dice
       )
     );
-    return totalSum
-  }
+    return totalSum;
+  };
 
   if (loading) {
     return (
@@ -239,30 +216,36 @@ const BattlePage: React.FC = () => {
     );
   }
 
+  const possibleTargets = participants.filter(p => p.participant_generic_id !== activeParticipant?.participant_generic_id);
+
   return (
     <div className="flex w-screen h-screen text-white">
-      <div className="w-1/4 bg-gray-800 p-4 h-screen overflow-auto">
+      <div className="w-[30%] bg-gray-800 p-4 h-screen overflow-auto">
         <Head>
           <title>Batalha</title>
           <link rel="icon" href="/favicon.ico" />
         </Head>
 
-        <h1 className="text-3xl font-bold mb-6">Batalha {battleId}</h1>
+        <h1 className="text-3xl font-bold mb-6 ">Batalha {battleId}</h1>
 
         <h2 className="text-2xl font-semibold mb-4">Ordem dos Turnos</h2>
-        {participants.length === 0 ? (
+        {fixedParticipants.length === 0 ? (
           <p className="text-center">Nenhum participante encontrado.</p>
         ) : (
           <ul className="space-y-4">
-            {participants.map((participant) => (
-              <li key={participant.participant_name} className={`bg-gray-800 p-4 rounded-lg shadow-md ${participant.battle_position === 1 ? 'border-2 border-yellow-500' : ''}`}>
+            {fixedParticipants.map((participant) => (
+              <li key={participant.participant_generic_id} className={`bg-gray-800 p-4 rounded-lg shadow-md ${participant.battle_position === 1 ? 'border-2 border-yellow-500' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold">{participant.participant_name}</h3>
-                    <p className="text-gray-400">Iniciativa: {participant.total_init}</p>
-                    <p className="text-gray-400">Posição na Batalha: {participant.battle_position}</p>
+                    <p className="text-gray-400">ID na batalha: {participant.participant_generic_id}</p>
+                    {participant.battle_position && participant.battle_position > 1
+                    ? <p className="text-gray-400">Turnos restantes para jogar: {participant.battle_position - 1}</p>
+                    : <p className="text-gray-400">Turno atual</p>}
+                    <p className="text-gray-400">Vida máxima: {participant.max_hp}</p>
+                    <p className="text-gray-400">Vida atual: {participant.current_hp}</p>
                   </div>
-                  {activeParticipant && activeParticipant.participant_name === participant.participant_name && (
+                  {activeParticipant && activeParticipant.participant_generic_id === participant.participant_generic_id && (
                     <span className="bg-green-500 text-white px-3 py-1 rounded-full">Ativo</span>
                   )}
                 </div>
@@ -277,11 +260,12 @@ const BattlePage: React.FC = () => {
           <div className="p-4 bg-gray-800 rounded-lg mb-4">
             <h2 className="text-2xl font-semibold text-center">Turno atual</h2>
             <p className="text-xl">Nome: {activeParticipant.participant_name}</p>
-            <p>Iniciativa: {activeParticipant.total_init}</p>
-            {activeParticipantInfo && (
+            <p>ID na batalha: {activeParticipant.participant_generic_id}</p>
+            {activeParticipant && (
               <>
-                <p>Vida Atual: {activeParticipantInfo.hp}</p>
-                <p>Classe de Armadura: {activeParticipantInfo.armor_class}</p>
+              <p>Vida Máxima: {activeParticipant.max_hp}</p>
+              <p>Vida Atual: {activeParticipant.current_hp}</p>
+              <p>Classe de Armadura: {activeParticipant.ac}</p>
               </>
             )}
             <div className="mt-4 flex space-x-4">
@@ -292,43 +276,71 @@ const BattlePage: React.FC = () => {
         )}
 
         {showAttackForm && (
-          <div className="p-4 bg-gray-800 rounded-lg mt-4">
-            <h2 className="text-2xl font-semibold mb-4">Ataque</h2>
-            <div>
-              {['d4', 'd6', 'd8', 'd10', 'd12', 'd20'].map((type, index) => (
-                <div key={type} className="mb-4">
-                  <label className="block text-gray-400 mb-2">{type}</label>
-                  <input
-                    type="number"
-                    placeholder="Quantidade"
-                    className="bg-gray-700 text-white p-2 rounded-lg w-[12%] mr-2"
-                    onChange={e => handleDiceInfo(type, 'count', Number(e.target.value))}
-                    value={diceInfo.find(dice => dice.type === type)?.count || 0}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Adicional"
-                    className="bg-gray-700 text-white p-2 rounded-lg w-[11%]"
-                    onChange={e => handleDiceInfo(type, 'bonus', Number(e.target.value))}
-                    value={diceInfo.find(dice => dice.type === type)?.bonus || 0}
-                  />
-                  <button
-                    type="submit"
-                    className="bg-green-500 text-white p-2 ml-2 rounded-lg w-[7%] "
-                    onClick={e => handleCountDiceSum(type)}
-                  >Rolar</button>
-                  <a
-                    type="number"
-                    className="p-2"
-                  >{diceInfo.find(dice => dice.type === type)?.completeSum}</a>
-                </div>
-              ))}
-              <button
-                onClick={handleSubmitAttack}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
-              >
-                Enviar Ataque
-              </button>
+          <div className="flex space-x-4 p-4 bg-gray-800 rounded-lg mt-4">
+            <div className="w-1/2">
+              <h2 className="text-2xl font-semibold mb-4">Ataque</h2>
+              <div>
+                {['d4', 'd6', 'd8', 'd10', 'd12', 'd20'].map((type, index) => (
+                  <div key={type} className="mb-4">
+                    <label className="block text-gray-400 mb-2">{type}</label>
+                    <input
+                      type="number"
+                      placeholder="Quantidade"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[12%] mr-2"
+                      onChange={e => handleDiceInfo(type, 'count', Number(e.target.value))}
+                      value={diceInfo.find(dice => dice.type === type)?.count || 0}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Adicional"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[11%]"
+                      onChange={e => handleDiceInfo(type, 'bonus', Number(e.target.value))}
+                      value={diceInfo.find(dice => dice.type === type)?.bonus || 0}
+                    />
+                    <button
+                      type="submit"
+                      className="bg-green-500 text-white p-2 ml-2 rounded-lg w-[12%]"
+                      onClick={() => handleCountDiceSum(type)}
+                    >
+                      Rolar
+                    </button>
+                    <span className="p-2">{diceInfo.find(dice => dice.type === type)?.completeSum}</span>
+                  </div>
+                ))}
+                  <div className='flex flex-col'>
+                    {noTargetSelected && (
+                      <span className="text-red-600 p-2">SELECIONE UM ALVO</span>
+                    )}
+                    <button
+                      onClick={handleSubmitAttack}
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 w-[35%]"
+                    >
+                      Enviar Ataque
+                    </button>
+                  </div>
+              </div>
+            </div>
+            <div className="w-1/2">
+              <h2 className="text-2xl font-semibold mb-4">Alvo</h2>
+              <ul className="space-y-4">
+                {possibleTargets.map(target => {
+                  return (
+                    <li
+                      key={target.participant_generic_id}
+                      className={`bg-gray-700 p-4 rounded-lg cursor-pointer ${selectedTargetId === target.participant_generic_id ? 'bg-blue-600' : ''}`}
+                      onClick={() => setSelectedTargetId(target.participant_generic_id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-xl">{target.participant_name}</p>
+                        <p className="text-xl">ID: {target.participant_generic_id}</p>
+                        {selectedTargetId === target.participant_generic_id && (
+                          <span className="text-white">Selecionado</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         )}
