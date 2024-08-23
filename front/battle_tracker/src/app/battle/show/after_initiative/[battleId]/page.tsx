@@ -18,19 +18,6 @@ interface Participant {
   ac: number;
 }
 
-interface ParticipantInfo {
-  participant_name: string;
-  participant_character_id: number | null;
-  participant_monster_id: number | null;
-  type: string;
-  total_init: number;
-  battle_position: number;
-  participant_generic_id: number;
-  max_hp: number;
-  current_hp: number;
-  ac: number;
-}
-
 interface DiceInfo {
   type: string;
   count: number;
@@ -47,9 +34,9 @@ const BattlePage: React.FC = () => {
     {type: 'd20',count: 0,bonus: 0,completeSum: 0}];
 
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [deadParticipants, setDeadParticipants] = useState<Participant[]>([]);
   const [fixedParticipants, setFixedParticipants] = useState<Participant[]>([]);
   const [activeParticipant, setActiveParticipant] = useState<Participant | null>(null);
-  const [activeParticipantInfo, setActiveParticipantInfo] = useState<ParticipantInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAttackForm, setShowAttackForm] = useState(false);
   const [diceInfo, setDiceInfo] = useState<DiceInfo[]>(diceInfoInitialState);
@@ -105,20 +92,21 @@ const BattlePage: React.FC = () => {
   const handleSkipTurn = () => {
     if (!activeParticipant) return;
 
+
     setParticipants(prevParticipants => {
       const updatedParticipants = [...prevParticipants];
       const index = updatedParticipants.findIndex(p => p.participant_name === activeParticipant.participant_name);
 
       if (index > -1) {
-        // Remove the current participant and append it to the end
         const [skippedParticipant] = updatedParticipants.splice(index, 1);
         skippedParticipant.battle_position = Math.max(...updatedParticipants.map(p => p.battle_position)) + 1;
         updatedParticipants.push(skippedParticipant);
 
-        // Reorder the participants
         updatedParticipants.forEach((p, i) => p.battle_position = i + 1);
-        const currentTurnParticipant = participants.find(participant => participant.battle_position === 1) || null;
-        setActiveParticipant(currentTurnParticipant);
+        const newActive = updatedParticipants.find(p => p.participant_generic_id !== activeParticipant?.participant_generic_id);
+        if (newActive){
+          setActiveParticipant(newActive)
+        }
         return updatedParticipants;
       }
       return prevParticipants;
@@ -132,17 +120,37 @@ const BattlePage: React.FC = () => {
   const dealDamage = (targetId: number, totalSum: number) => {
     const updatedParticipants = participants.map(participant => {
       if (participant.participant_generic_id === targetId) {
+        if (totalSum >= participant.current_hp) {
+          return { ...participant, current_hp: 0 };
+        }
         return { ...participant, current_hp: participant.current_hp - totalSum };
       }
       return participant;
     });
-    
-    setParticipants(updatedParticipants);
-  };
 
-  useEffect(() => {
-    console.log('participants atualizado:', participants);
-  }, [participants]);
+    const aliveParticipants = updatedParticipants.filter(p => p.current_hp > 0);
+    const deadParticipantPosition = updatedParticipants.find(p => (p.participant_generic_id === targetId && p.current_hp === 0))?.battle_position;
+
+    if (deadParticipantPosition !== undefined) {
+      const reorderedParticipants = aliveParticipants.map(participant => ({
+        ...participant,
+        battle_position: participant.battle_position > deadParticipantPosition
+          ? participant.battle_position + 1
+          : participant.battle_position
+      }));
+
+      const deadParticipant = updatedParticipants.find(p => p.current_hp === 0)
+      if (deadParticipant) {
+        setDeadParticipants(prev => [...prev, deadParticipant])
+      }
+
+      setParticipants(reorderedParticipants);
+      setFixedParticipants(reorderedParticipants.sort((a, b) => a.participant_generic_id - b.participant_generic_id));
+    } else {
+      setParticipants(aliveParticipants);
+      setFixedParticipants(aliveParticipants.sort((a, b) => a.participant_generic_id - b.participant_generic_id));
+    }
+  };
 
   const handleSubmitAttack = () => {
     if (selectedTargetId === null) {
@@ -161,11 +169,7 @@ const BattlePage: React.FC = () => {
 
     handleSkipTurn()
 
-    const currentTurnParticipant = participants.find(participant => participant.battle_position === 1) || null;
-    setActiveParticipant(currentTurnParticipant);
-
     setNoTargetSelected(false)
-    console.log(participants)
   };
 
   const handleDiceInfo = (type: string, field: 'count' | 'bonus', value: number) => {
@@ -216,19 +220,19 @@ const BattlePage: React.FC = () => {
     );
   }
 
-  const possibleTargets = participants.filter(p => p.participant_generic_id !== activeParticipant?.participant_generic_id);
+  let possibleTargets = participants.filter(p => p.participant_generic_id !== activeParticipant?.participant_generic_id);
 
   return (
     <div className="flex w-screen h-screen text-white">
-      <div className="w-[30%] bg-gray-800 p-4 h-screen overflow-auto">
+      <div className="w-[25%] bg-gray-800 p-4 h-screen overflow-auto">
         <Head>
           <title>Batalha</title>
           <link rel="icon" href="/favicon.ico" />
         </Head>
 
-        <h1 className="text-3xl font-bold mb-6 ">Batalha {battleId}</h1>
+        <h1 className="text-3xl font-bold mb-6 text-center">Batalha {battleId}</h1>
 
-        <h2 className="text-2xl font-semibold mb-4">Ordem dos Turnos</h2>
+        <h2 className="text-2xl font-semibold mb-4 text-center">Ordem dos Turnos</h2>
         {fixedParticipants.length === 0 ? (
           <p className="text-center">Nenhum participante encontrado.</p>
         ) : (
@@ -245,9 +249,6 @@ const BattlePage: React.FC = () => {
                     <p className="text-gray-400">Vida máxima: {participant.max_hp}</p>
                     <p className="text-gray-400">Vida atual: {participant.current_hp}</p>
                   </div>
-                  {activeParticipant && activeParticipant.participant_generic_id === participant.participant_generic_id && (
-                    <span className="bg-green-500 text-white px-3 py-1 rounded-full">Ativo</span>
-                  )}
                 </div>
               </li>
             ))}
@@ -286,20 +287,20 @@ const BattlePage: React.FC = () => {
                     <input
                       type="number"
                       placeholder="Quantidade"
-                      className="bg-gray-700 text-white p-2 rounded-lg w-[12%] mr-2"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[20%] mr-2"
                       onChange={e => handleDiceInfo(type, 'count', Number(e.target.value))}
                       value={diceInfo.find(dice => dice.type === type)?.count || 0}
                     />
                     <input
                       type="number"
                       placeholder="Adicional"
-                      className="bg-gray-700 text-white p-2 rounded-lg w-[11%]"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[20%]"
                       onChange={e => handleDiceInfo(type, 'bonus', Number(e.target.value))}
                       value={diceInfo.find(dice => dice.type === type)?.bonus || 0}
                     />
                     <button
                       type="submit"
-                      className="bg-green-500 text-white p-2 ml-2 rounded-lg w-[12%]"
+                      className="bg-green-500 text-white p-2 ml-2 rounded-lg w-[20%]"
                       onClick={() => handleCountDiceSum(type)}
                     >
                       Rolar
@@ -313,14 +314,14 @@ const BattlePage: React.FC = () => {
                     )}
                     <button
                       onClick={handleSubmitAttack}
-                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 w-[35%]"
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 w-[70%]"
                     >
                       Enviar Ataque
                     </button>
                   </div>
               </div>
             </div>
-            <div className="w-1/2">
+            <div className="w-3/4">
               <h2 className="text-2xl font-semibold mb-4">Alvo</h2>
               <ul className="space-y-4">
                 {possibleTargets.map(target => {
@@ -344,6 +345,27 @@ const BattlePage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+      <div className="w-[25%] bg-gray-800 p-4 h-screen overflow-auto">
+        <h1 className="text-3xl font-bold mb-6 text-center">Mortes</h1>
+          {deadParticipants.length === 0 ? (
+            <p className="text-center">Nenhum participante morto.</p>
+          ) : (
+            <ul className="space-y-4">
+              {deadParticipants.map((participant) => (
+                <li key={participant.participant_generic_id} className={`bg-gray-800 p-4 rounded-lg shadow-md ${participant.battle_position === 1 ? 'border-2 border-yellow-500' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold">{participant.participant_name}</h3>
+                      <p className="text-gray-400">ID na batalha: {participant.participant_generic_id}</p>
+                      <p className="text-gray-400">Vida máxima: {participant.max_hp}</p>
+                      <p className="text-gray-400">Vida atual: {participant.current_hp}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
       </div>
     </div>
   );
