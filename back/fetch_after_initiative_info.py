@@ -19,7 +19,8 @@ def fetch_after_initiative_info(battle_info):
         fetched_battle_info = {'participant_characters': battle_row.participant_characters,
                     'participant_monsters': battle_row.participant_monsters,
                     'participants_initiative_order': battle_row.participants_initiative_order,
-                    'battle_id':battle_row.battle_id
+                    'battle_id':battle_row.battle_id,
+                    'dead_participants': battle_row.dead_participants
                                         }
 
         return fetched_battle_info

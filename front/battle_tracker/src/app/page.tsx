@@ -55,6 +55,9 @@ export default function Index() {
   const handleShowCharacters = () => {
     router.push('/character/show_all'); // Redirecionar para a página de login (certifique-se de adicionar a página de login)
   };
+  const handleChangePassword = () => {
+    router.push('/users/change_password'); // Redirecionar para a página de login (certifique-se de adicionar a página de login)
+  };
 
   if (loading) {
     return <div className="w-screen h-screen bg-gray-900 text-white flex items-center justify-center">Carregando...</div>;
@@ -105,6 +108,12 @@ export default function Index() {
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
               >
                 Logout
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+              >
+                Trocar Senha
               </button>
               <button
                 onClick={handleViewBattles}

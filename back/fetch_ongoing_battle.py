@@ -37,7 +37,19 @@ def fetch_ongoing_battle(battle_id):
             querry_to_find_name = select(Battle.name).where(Battle.id == battle_info['battle_id'])
             result = session.execute(querry_to_find_name)
             battle_info['battle_name'] = result.first()[0]
-        
+            
+        if battle_row.status == 'saved_after_initiative':
+            battle_info = {'participant_characters': battle_row.participant_characters,
+                        'participant_monsters': battle_row.participant_monsters,
+                        'participants_initiative_order': battle_row.participants_initiative_order,
+                        'dead_participants': battle_row.dead_participants,
+                        'battle_id':battle_row.battle_id
+                                            }
+            
+            querry_to_find_name = select(Battle.name).where(Battle.id == battle_info['battle_id'])
+            result = session.execute(querry_to_find_name)
+            battle_info['battle_name'] = result.first()[0]
+
         return battle_info
         
     except Exception as e:

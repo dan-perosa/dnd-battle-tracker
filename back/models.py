@@ -73,3 +73,4 @@ class OngoingBattle(Base):
     owner = relationship("User", back_populates="ongoing_battles", lazy='joined')
     participants_initiative_order = Column(String, nullable=True)
     current_hps = Column(String, nullable=True)
+    dead_participants = Column(String, nullable=True)

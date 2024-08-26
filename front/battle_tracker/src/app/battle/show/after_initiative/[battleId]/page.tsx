@@ -39,13 +39,17 @@ const BattlePage: React.FC = () => {
   const [activeParticipant, setActiveParticipant] = useState<Participant | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAttackForm, setShowAttackForm] = useState(false);
+  const [showDamageForm, setShowDamageForm] = useState(false);
   const [diceInfo, setDiceInfo] = useState<DiceInfo[]>(diceInfoInitialState);
+  const [damageDiceInfo, setDamageDiceInfo] = useState<DiceInfo[]>(diceInfoInitialState);
   const router = useRouter();
   const { battleId } = useParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [totalSum, setTotalSum] = useState<number>(0);
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
-  const [noTargetSelected, setNoTargetSelected] = useState<true | false>(false)
+  const [noTargetSelected, setNoTargetSelected] = useState<true | false>(false);
+  const [showAttackMissedPopup, setShowAttackMissedPopup] = useState(false);
+  const [showSavedBattlePopup, setShowSavedBattlePopup] = useState(false);
 
   useEffect(() => {
     const storedUserId = localStorage.getItem('userId');
@@ -72,6 +76,15 @@ const BattlePage: React.FC = () => {
         const data = await response.json();
         const jsonString = data.participants_initiative_order.replace(/'/g, '"').replace(/None/g, 'null');
         const participantsInitiativeOrderList: Participant[] = JSON.parse(jsonString);
+
+        console.log(data)
+
+        if (data.dead_participants) {
+          const jsonDeadString = data.dead_participants.replace(/'/g, '"').replace(/None/g, 'null');
+          const fetchedDeadParticipants: Participant[] = JSON.parse(jsonDeadString);
+          setDeadParticipants(fetchedDeadParticipants)
+        }
+
         setParticipants(participantsInitiativeOrderList);
         setFixedParticipants(participantsInitiativeOrderList);
 
@@ -157,23 +170,61 @@ const BattlePage: React.FC = () => {
       setNoTargetSelected(true)
       return
     }
+
     let allDicesTotalSum = 0
     diceInfo.map(dice => {
       allDicesTotalSum += dice.completeSum
     })
-    dealDamage(selectedTargetId, allDicesTotalSum)
+
+    const selectedTargetAc = participants.find(participant => participant.participant_generic_id === selectedTargetId)?.ac
+    if (selectedTargetAc) {
+      if (allDicesTotalSum >= selectedTargetAc) {
+        setShowDamageForm(true)
+        setShowAttackMissedPopup(false)
+      } else {
+        setShowAttackMissedPopup(true)
+        setShowDamageForm(false)
+      }
+    }
 
     setDiceInfo(diceInfoInitialState)
-    setSelectedTargetId(null)
-    setShowAttackForm(false);
 
-    handleSkipTurn()
+    setShowAttackForm(false);
 
     setNoTargetSelected(false)
   };
 
+  const handleSubmitDamage = () => {
+    if (selectedTargetId === null) {
+      setNoTargetSelected(true)
+      return
+    }
+
+    let allDamageDicesTotalSum = 0
+    damageDiceInfo.map(dice => {
+      allDamageDicesTotalSum += dice.completeSum
+    })
+
+    dealDamage(selectedTargetId, allDamageDicesTotalSum)
+
+    setDamageDiceInfo(diceInfoInitialState)
+    setSelectedTargetId(null)
+    setShowDamageForm(false)
+    handleSkipTurn()
+  }
+
   const handleDiceInfo = (type: string, field: 'count' | 'bonus', value: number) => {
     setDiceInfo(prevDiceInfo => {
+      return prevDiceInfo.map(dice => 
+        dice.type === type 
+          ? { ...dice, [field]: value }
+          : dice
+      );
+    });
+  };
+
+  const handleDamageDiceInfo = (type: string, field: 'count' | 'bonus', value: number) => {
+    setDamageDiceInfo(prevDiceInfo => {
       return prevDiceInfo.map(dice => 
         dice.type === type 
           ? { ...dice, [field]: value }
@@ -211,6 +262,94 @@ const BattlePage: React.FC = () => {
     );
     return totalSum;
   };
+
+  const handleCountDamageDiceSum = (type: string) => {
+    let faces = 0;
+    if (type === 'd4') faces = 4;
+    else if (type === 'd6') faces = 6;
+    else if (type === 'd8') faces = 8;
+    else if (type === 'd10') faces = 10;
+    else if (type === 'd12') faces = 12;
+    else faces = 20;
+
+    const diceAmount = damageDiceInfo.find(dice => dice.type === type)?.count || 0;
+    const diceBonus = damageDiceInfo.find(dice => dice.type === type)?.bonus || 0;
+
+    let rolledSum = 0;
+
+    for (let i = 0; i < diceAmount; i++) {
+      const roll = Math.floor(Math.random() * faces) + 1;
+      rolledSum += roll;
+    }
+
+    const totalSum = rolledSum + diceBonus;
+    setDamageDiceInfo(prevDiceInfo =>
+      prevDiceInfo.map(dice =>
+        dice.type === type
+          ? { ...dice, completeSum: totalSum }
+          : dice
+      )
+    );
+    return totalSum;
+  };
+
+  const AttackMissedPopup: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    return (
+      <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center">
+        <div className="bg-gray-900 p-6 rounded-lg shadow-lg text-center">
+          <h2 className="text-xl font-semibold mb-4">Ataque Perdido</h2>
+          <p className="mb-4">Seu ataque não acertou o alvo.</p>
+          <button
+            onClick={onClose}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const SavedBattlePopup: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    return (
+      <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center">
+        <div className="bg-gray-900 p-6 rounded-lg shadow-lg text-center">
+          <h2 className="text-xl font-semibold mb-4">Batalha Salva</h2>
+          <p className="mb-4">Sua batalha está salva! Pode voltar depois.</p>
+          <button
+            onClick={onClose}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-300"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const handleSaveBattle = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/battle/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ battle_id: Number(battleId), owner_id: Number(userId),
+          participants_initiative_order: participants, dead_participants: deadParticipants
+         }),
+      });
+
+      setShowSavedBattlePopup(true)
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+    } catch (error) {
+      console.error('Error fetching participants:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -259,6 +398,12 @@ const BattlePage: React.FC = () => {
       <div className="flex-grow bg-gray-900 p-4 overflow-auto h-screen">
         {activeParticipant && (
           <div className="p-4 bg-gray-800 rounded-lg mb-4">
+            {showAttackMissedPopup && (
+              <AttackMissedPopup onClose={() => (setShowAttackMissedPopup(false), handleSkipTurn(), setSelectedTargetId(null))} />
+            )}
+            {showSavedBattlePopup && (
+              <SavedBattlePopup onClose={() => (setShowSavedBattlePopup(false))} />
+            )}
             <h2 className="text-2xl font-semibold text-center">Turno atual</h2>
             <p className="text-xl">Nome: {activeParticipant.participant_name}</p>
             <p>ID na batalha: {activeParticipant.participant_generic_id}</p>
@@ -345,6 +490,56 @@ const BattlePage: React.FC = () => {
             </div>
           </div>
         )}
+        {showDamageForm && (
+          <div className="flex space-x-4 p-4 bg-gray-800 rounded-lg mt-4">
+            <div className="w-1/2">
+              <h2 className="text-2xl font-semibold mb-4">Dano</h2>
+              <div>
+                {['d4', 'd6', 'd8', 'd10', 'd12', 'd20'].map((type, index) => (
+                  <div key={type} className="mb-4">
+                    <label className="block text-gray-400 mb-2">{type}</label>
+                    <input
+                      type="number"
+                      placeholder="Quantidade"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[20%] mr-2"
+                      onChange={e => handleDamageDiceInfo(type, 'count', Number(e.target.value))}
+                      value={damageDiceInfo.find(dice => dice.type === type)?.count || 0}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Adicional"
+                      className="bg-gray-700 text-white p-2 rounded-lg w-[20%]"
+                      onChange={e => handleDamageDiceInfo(type, 'bonus', Number(e.target.value))}
+                      value={damageDiceInfo.find(dice => dice.type === type)?.bonus || 0}
+                    />
+                    <button
+                      type="submit"
+                      className="bg-green-500 text-white p-2 ml-2 rounded-lg w-[20%]"
+                      onClick={() => handleCountDamageDiceSum(type)}
+                    >
+                      Rolar
+                    </button>
+                    <span className="p-2">{damageDiceInfo.find(dice => dice.type === type)?.completeSum}</span>
+                  </div>
+                ))}
+                  <div className='flex flex-col'>
+                    <button
+                      onClick={handleSubmitDamage}
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 w-[70%]"
+                    >
+                      Enviar Dano
+                    </button>
+                  </div>
+              </div>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleSaveBattle}
+          className="bg-yellow-700 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 w-[100%]"
+        >
+          Salvar Batalha
+        </button>
       </div>
       <div className="w-[25%] bg-gray-800 p-4 h-screen overflow-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">Mortes</h1>

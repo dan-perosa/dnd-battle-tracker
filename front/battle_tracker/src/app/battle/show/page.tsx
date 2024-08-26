@@ -139,6 +139,9 @@ const BattlesPage: React.FC = () => {
     else if (battle_info && battle_info.battle_status == 'after_initiative') {
       router.push(`/battle/show/after_initiative/${battle_id}`)
     }
+    else if (battle_info && battle_info.battle_status == 'saved_after_initiative') {
+      router.push(`/battle/show/after_initiative/${battle_id}`)
+    }
   };
 
   const handleToggleSelect = (battle: Battle) => {

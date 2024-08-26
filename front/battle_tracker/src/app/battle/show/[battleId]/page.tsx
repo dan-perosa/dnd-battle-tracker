@@ -237,16 +237,11 @@ const TrackerPage: React.FC = () => {
                               'initiative_info': allParticipants})
       });
 
-      console.log(JSON.stringify({'battle_id': battleId,
-        'owner_id': userId,
-        'initiative_info': allParticipants}))
+      router.push(`/battle/show/after_initiative/${battleId}`)
 
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
-
-      const data = await response.json();
-
     } catch (error) {
       console.error('Error fetching battle data:', error);
     }

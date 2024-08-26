@@ -22,6 +22,7 @@ from fetch_mapped_participants import fetch_mapped_participants
 from transform_to_after_initiative import transform_to_after_initiative
 from fetch_after_initiative_info import fetch_after_initiative_info
 from fetch_after_initiative_hps import fetch_after_initiative_hps
+from save_battle import save_battle
 
 app = FastAPI()
 
@@ -136,6 +137,13 @@ class FetchAfterInitiativeHps(BaseModel):
     battle_id: int
     owner_id: int
     
+class SaveBattle(BaseModel):
+    battle_id: int
+    owner_id: int
+    participants_initiative_order: list
+    dead_participants: list
+    
+    
 @app.post('/users/create_user')
 def create_user_endpoint(user_info: UserCreate, response: Response):
     user_dict = user_info
@@ -239,6 +247,10 @@ def fetch_after_initiative_info_endpoint(battle_info: FetchAfterInitiativeBattle
 @app.post('/battle/fetch_after_initiative_hps')
 def fetch_after_initiative_hps_endpoint(battle_info: FetchAfterInitiativeHps):
     return fetch_after_initiative_hps(battle_info)
+
+@app.post('/battle/save')
+def save_battle_endpoint(battle_info: SaveBattle):
+    return save_battle(battle_info)
 
 
  
