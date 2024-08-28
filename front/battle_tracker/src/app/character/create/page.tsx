@@ -18,11 +18,14 @@ const CreateCharacterPage: React.FC = () => {
     intelligence: 0,
     wisdom: 0,
     charisma: 0,
+    status: '',
   });
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
   const [dndRaces, setDndRaces] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [noNameErrorMessage, setNoNameErrorMessage] = useState(false);
+  const [noRaceErrorMessage, setNoRaceErrorMessage] = useState(false);
 
   useEffect(() => { 
     const storedUserId = localStorage.getItem('userId');
@@ -60,7 +63,7 @@ const CreateCharacterPage: React.FC = () => {
     fetchDndRaces();
   }, [userId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormValues(prev => ({
       ...prev,
@@ -74,11 +77,24 @@ const CreateCharacterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log(formValues);
+    setNoNameErrorMessage(false)
+    setNoRaceErrorMessage(false)
 
     const dataToSubmit = {
         ...formValues,
         owner_id: userId
       };
+
+    if (dataToSubmit.name === '') {
+      setNoNameErrorMessage(true)      
+      return
+    }
+
+    if (dataToSubmit.race === '') {
+      setNoRaceErrorMessage(true)
+      return
+    }
+
 
     try {
       const response = await fetch('http://127.0.0.1:8000/character/create', {
@@ -101,8 +117,8 @@ const CreateCharacterPage: React.FC = () => {
   };
 
   return (
-    <div className="w-screen h-screen bg-gray-900 text-white flex flex-col items-center p-6">
-      <h1 className="text-3xl font-bold mb-6">Criar Personagem</h1>
+    <div className="w-screen h-screen bg-gray-900 text-white flex flex-col items-center p-6 overflow-auto">
+      <h1 className="text-3xl font-bold mb-6 ml-20">Criar Personagem</h1>
 
       <form onSubmit={handleSubmit} className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Campo de Nome ocupando duas colunas */}
@@ -132,14 +148,18 @@ const CreateCharacterPage: React.FC = () => {
 
         <div className="flex items-center">
           <label htmlFor="race" className="w-1/4 text-lg text-right pr-4">Raça:</label>
-          <input
+          <select
             id="race"
             name="race"
-            type="text"
             value={formValues.race}
             onChange={handleChange}
             className="flex-1 p-2 bg-gray-800 border border-gray-700 rounded-lg"
-          />
+          >
+            <option value="" disabled>Selecione uma raça</option>
+            {dndRaces.map((race, index) => (
+              <option key={index} value={race}>{race}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center">
@@ -271,13 +291,35 @@ const CreateCharacterPage: React.FC = () => {
             className="flex-1 p-2 bg-gray-800 border border-gray-700 rounded-lg"
           />
         </div>
-
-        <button
-          type="submit"
-          className="col-span-full mx-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-300 text-center"
-        >
-          Criar Personagem
-        </button>
+        <div className="col-span-full flex items-center">
+          <label htmlFor="status" className="w-[12.5%] text-lg text-right pr-4">Status:</label>
+          <input
+            id="status"
+            name="status"
+            type="text"
+            value={formValues.status}
+            onChange={handleChange}
+            className="flex-1 p-2 bg-gray-800 border border-gray-700 rounded-lg"
+          />
+        </div>
+        {noNameErrorMessage && (
+          <div className='text-center text-red-500'>
+            NÃO É POSSIVEL CRIAR PERSONAGEM SEM NOME
+          </div>
+        )}
+        {noRaceErrorMessage && (
+          <div className='text-center text-red-500'>
+            NÃO É POSSIVEL CRIAR PERSONAGEM SEM RAÇA
+          </div>
+        )}
+        <div className="col-span-full flex align-center items-center "> 
+          <button
+            type="submit"
+            className="mx-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-4 rounded-lg transition-colors duration-300"
+          >
+            Criar Personagem
+          </button>
+        </div>
       </form>
     </div>
   );
