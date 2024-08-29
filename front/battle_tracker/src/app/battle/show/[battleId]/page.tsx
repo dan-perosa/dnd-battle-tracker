@@ -102,6 +102,7 @@ const TrackerPage: React.FC = () => {
         }),
       });
 
+
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -109,6 +110,7 @@ const TrackerPage: React.FC = () => {
       const data = await response.json();
       setParticipantMappedCharactersList(data.mapped_characters);
       setParticipantMappedMonstersList(data.mapped_monsters);
+      console.log(data)
     } catch (error) {
       console.error('Error fetching mapped participants:', error);
     }
@@ -157,6 +159,11 @@ const TrackerPage: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log(participantMappedMonstersList);
+  }, [participantMappedMonstersList]);
+  
+
+  useEffect(() => {
     fetchBattleData();
   }, [battleId]);
 
@@ -191,7 +198,7 @@ const TrackerPage: React.FC = () => {
 
   useEffect(() => {
     const participants: InitiativeParticipant[] = [
-      ...participantMappedCharactersList.map(participant => ({
+      ...(participantMappedCharactersList || []).map(participant => ({
         participant_generic_id: null,
         participant_name: participant.character_name,
         participant_character_id: participant.participant_character_id,
@@ -200,7 +207,7 @@ const TrackerPage: React.FC = () => {
         total_init: initiativeMap[`${participant.participant_character_id}-${participant.character_name}`]?.total_init || 0,
         battle_position: null,
       })),
-      ...participantMappedMonstersList.map(participant => ({
+      ...(participantMappedMonstersList || []).map(participant => ({
         participant_generic_id: null,
         participant_name: participant.monster_name,
         participant_character_id: null,
@@ -276,7 +283,7 @@ const TrackerPage: React.FC = () => {
         <div className="flex-1 p-4">
           <h2 className="text-3xl font-semibold mb-4 text-center">Personagens</h2>
           <ul className="space-y-4">
-            {participantMappedCharactersList.map((participant) => (
+            {participantMappedCharactersList && participantMappedCharactersList.map((participant) => (
               <li
                 key={participant.character_id}
                 className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4"
@@ -313,7 +320,7 @@ const TrackerPage: React.FC = () => {
         <div className="flex-1 p-4">
           <h2 className="text-3xl font-semibold mb-4 text-center">Monstros</h2>
           <ul className="space-y-4">
-            {participantMappedMonstersList.map((participant) => (
+            {participantMappedMonstersList && participantMappedMonstersList.map((participant) => (
               <li
                 key={participant.monster_id}
                 className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4"

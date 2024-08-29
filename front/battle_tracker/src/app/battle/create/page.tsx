@@ -268,7 +268,7 @@ const CreateBattlePage: React.FC = () => {
             <h2 className="text-2xl font-bold mb-6 text-center">Personagens</h2>
             {/* Exemplo de lista, substituir pelo conteúdo real */}
             <div className="flex flex-col space-y-4">
-            {userCharacters.map(character => (
+            {userCharacters && userCharacters.map(character => (
               <button
                 key={character.id}
                 onClick={() => handleSelectCharacter(character.id, character.name)}
@@ -312,9 +312,9 @@ const CreateBattlePage: React.FC = () => {
             {/* Exemplo de lista, substituir pelo conteúdo real */}
             <div className="flex flex-col space-y-4 overflow-auto w-[90%] hide-scrollbar">
               {selectedItems.map((item, index) => (
-                <div key={index} className="bg-purple-500 text-white px-4 py-2 rounded-lg text-center" onClick={() => handleDeleteSelected(index, item.name)}>
+                <button key={index} className="text-center bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors duration-300" onClick={() => handleDeleteSelected(index, item.name)}>
                   {item.name}
-                </div>
+                </button>
               ))}
             </div>
           </div>

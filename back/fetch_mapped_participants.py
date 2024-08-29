@@ -22,30 +22,63 @@ def fetch_mapped_participants(participant_info):
     participant_characters_list = participant_info.participant_characters.split(', ')
 
     try:
-        for index, character in enumerate(participant_characters_list):
+        if (participant_characters_list != [''] and participant_info.participant_monsters != ['']):            
+            for index, character in enumerate(participant_characters_list):
 
-            querry = select(Character).where(Character.owner_id == participant_info.owner_id).where(Character.name == character)
-            result = session.execute(querry)
-            if len(result.all()) == 0:
-                return {'erro': 'personagem não encontrado'}    
+                querry = select(Character).where(Character.owner_id == participant_info.owner_id).where(Character.name == character)
+                result = session.execute(querry)
+                if len(result.all()) == 0:
+                    return {'erro': 'personagem não encontrado'}    
+                    
+                result = session.execute(querry)
                 
-            result = session.execute(querry)
-            
-            character_row = result.scalars().first()
-            
+                character_row = result.scalars().first()
+                
 
-            character_mapped.append({'participant_character_id': (index + 1),
-                                    'character_id': character_row.id,
-                                    'character_name': character_row.name,
-                                            })
+                character_mapped.append({'participant_character_id': (index + 1),
+                                        'character_id': character_row.id,
+                                        'character_name': character_row.name,
+                                                })
 
+            
+            mapped_participants = {
+                'mapped_characters': character_mapped,
+                'mapped_monsters': map_monsters(participant_info.participant_monsters)
+            }
+                
+            return mapped_participants
         
-        mapped_participants = {
-            'mapped_characters': character_mapped,
-            'mapped_monsters': map_monsters(participant_info.participant_monsters)
-        }
-            
-        return mapped_participants
+        elif participant_characters_list == ['']:            
+
+            character_mapped = []
+
+            mapped_participants = {
+                'mapped_characters': character_mapped,
+                'mapped_monsters': map_monsters(participant_info.participant_monsters)
+            }
+                
+            return mapped_participants
+        
+        elif participant_info.participant_monsters == ['']:            
+            for index, character in enumerate(participant_characters_list):
+
+                querry = select(Character).where(Character.owner_id == participant_info.owner_id).where(Character.name == character)
+                result = session.execute(querry)
+                if len(result.all()) == 0:
+                    return {'erro': 'personagem não encontrado'}    
+                    
+                result = session.execute(querry)
+                
+                character_row = result.scalars().first()
+
+                character_mapped = ['']
+
+            mapped_participants = {
+                'mapped_characters': character_mapped,
+                'mapped_monsters': []
+            }
+                
+            return mapped_participants
     
     except Exception as e:
         print(f'Erro ao criar {str(e)}')
